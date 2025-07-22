@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RezeptDatenbank")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fea56754e8e9e199a29b80d5b22571fe1899f88c")]
 [assembly: System.Reflection.AssemblyProductAttribute("RezeptDatenbank")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RezeptDatenbank")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
