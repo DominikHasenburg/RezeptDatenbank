@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Rezepte</title>
+  <style>
+    @media screen and (max-width: 700px) {
+        .flexbox {   
+            flex-direction: column;
+        }
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background-color: #f7f7f7;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li {
+      background: #fff;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    .recipe-line {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+    }
+    .flexbox {
+        display:flex;
+    }
+    .left {
+        flex: 35%;
+        max-height: 770px;
+        overflow: auto;
+    }
+    .right {
+        flex: 35%;
+        max-height: 770px            
+    }
+    .middle {
+        flex: 30%;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Rezepte</h1>
+  <div class="flexbox">
+    <!-- This is where recipe items will be displayed -->
+    <ul class = "left" class="scrollable-list" id="rezeptListe"></ul>
+
+    <!-- Buttons to trigger recipe addition -->
+
+    <div class ="middle" id="formContainer">
+        <h2>Neues Rezept</h2>
+        <input id="rezeptName" type="text" placeholder="Rezeptname" />
+
+        <div id="zutatenContainer">
+            <div class="zutat">
+            <input type="text" placeholder="Zutat" class="zutatName" />
+            <input type="text" placeholder="Menge" class="zutatMenge" />
+            </div>
+        </div>
+
+        <button onclick="neueZutat()">+ Weitere Zutat</button>
+        <button onclick="rezeptHinzufuegen()">Rezept speichern</button>
+    </div>
+    <!--This is where the shopping List will be displayed-->
+    <div class="right">
+        <h2>Einkaufsliste</h2>
+        <ul id="auswahlListe" class="selected-list"></ul>
+    </div>
+  </div>
+  <script>
+    const selectedRecipes = [];
+    function aktualisiereAuswahlListe() {
+        const ul = document.getElementById("auswahlListe");
+        ul.innerHTML = '';
+
+        const summed = {};
+        const ungrouped= {};
+        selectedRecipes.forEach(recipe => {
+            recipe.ingredients.forEach(ing => {
+            const match = ing.amount.match(/^(\d+(?:[\.,]\d+)?)(\D+)$/); // e.g. "500g" → ["500g", "500", "g"]
+            if (!match) { // Couldn't add up amount → just store as-is
+                ungrouped.push("${ing.name} - ${ing.amount}");
+                return;
+            }
+            const rawName = ing.name.trim().toLowerCase();
+            const name = rawName.charAt(0).toUpperCase() + rawName.slice(1); // e.g. "huhn" → "Huhn"
+
+            const num = parseFloat(match[1].replace(',', '.'));
+            const unit = match[2].trim();
+
+            const key = `${name}||${unit}`;
+
+            if (!summed[key]) {
+                summed[key] = 0;
+            }
+            summed[key] += num;
+            });
+        });
+
+        for (const key in summed) {
+            const [name, unit] = key.split('||');
+            const amount = Number.isInteger(summed[key]) ? summed[key] : summed[key].toFixed(2);
+
+            const li = document.createElement("li");
+            li.textContent = `${name} - ${amount}${unit}`;
+            ul.appendChild(li);
+        }
+        // Display ungrouped items
+        ungrouped.forEach(entry => {
+            const li = document.createElement("li");
+            li.textContent = entry;
+            ul.appendChild(li);
+        });
+    }
+    // Function to load recipes from the backend
+    async function ladeRezepte() {
+    const response = await fetch('/api/recipes');
+    const rezepte = await response.json();
+
+    const ul = document.getElementById("rezeptListe");
+    ul.innerHTML = '';
+
+    rezepte.forEach(r => {
+        const li = document.createElement("li");
+        li.style.cursor = "pointer";
+        li.textContent = r.name;
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = selectedRecipes.includes(r.name);
+
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                if (!selectedRecipes.some(r2 => r2.name === r.name)) {
+                selectedRecipes.push(r);
+                }
+            } else {
+                const index = selectedRecipes.findIndex(r2 => r2.name === r.name);
+                if (index !== -1) {
+                selectedRecipes.splice(index, 1);
+                }
+            }
+            aktualisiereAuswahlListe();
+        });  
+
+        const zutatenListe = document.createElement("ul");
+        zutatenListe.style.display = "none";
+        zutatenListe.style.marginTop = "0.25rem";
+        zutatenListe.style.marginLeft = "1.5rem";
+        zutatenListe.style.listStyleType = "disc";
+
+        r.ingredients.forEach(z => {
+            const zutatItem = document.createElement("li");
+            zutatItem.textContent = `${z.name} – ${z.amount}`;
+            zutatenListe.appendChild(zutatItem);
+        });
+
+        li.addEventListener("click", () => {
+            zutatenListe.style.display = zutatenListe.style.display === "none" ? "block" : "none";
+        });
+        const line = document.createElement("div");
+        line.className= "recipe-line";
+        line.appendChild(li);
+        line.appendChild(checkbox);
+        ul.appendChild(line);
+        ul.appendChild(zutatenListe);
+    });
+}
+
+    function neueZutat() {
+        const container = document.getElementById("zutatenContainer");
+        const neueZeile = document.createElement("div");
+        neueZeile.className = "zutat";
+
+        neueZeile.innerHTML = `
+            <input type="text" placeholder="Zutat" class="zutatName" />
+            <input type="text" placeholder="Menge" class="zutatMenge" />
+        `;
+
+        container.appendChild(neueZeile);
+    }
+
+    async function rezeptHinzufuegen() {
+        const name = document.getElementById("rezeptName").value.trim();
+        if (!name) {
+            alert("Bitte gib einen Rezeptnamen ein.");
+            return;
+        }
+
+        const names = document.querySelectorAll(".zutatName");
+        const mengen = document.querySelectorAll(".zutatMenge");
+
+        const ingredients = [];
+        for (let i = 0; i < names.length; i++) {
+            const zName = names[i].value.trim();
+            const zMenge = mengen[i].value.trim();
+            if (zName && zMenge) {
+            ingredients.push({ name: zName, amount: zMenge });
+            }
+        }
+
+        if (ingredients.length === 0) {
+            alert("Bitte gib mindestens eine Zutat ein.");
+            return;
+        }
+
+        const rezept = {
+            id: "1", // temporary unique ID
+            name: name,
+            ingredients: ingredients
+        };
+
+        const response = await fetch("/api/recipes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(rezept)
+        });
+
+        if (!response.ok) {
+            alert("Fehler beim Speichern.");
+            return;
+        }
+
+        alert("Rezept hinzugefügt!");
+        ladeRezepte(); // refresh list
+    }
+
+    // Run this when the page loads
+    window.onload = ladeRezepte;
+  </script>
+
+</body>
+</html>
